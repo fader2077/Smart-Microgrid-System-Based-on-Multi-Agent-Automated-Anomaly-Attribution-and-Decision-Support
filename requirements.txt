@@ -1,0 +1,21 @@
+# Smart Grid AI Operator - Requirements
+# Python 3.10+
+
+# Core Data Processing
+pandas>=2.0.0
+numpy>=1.24.0
+
+# LangChain and LLM
+langchain>=0.1.0
+langchain-experimental>=0.0.50
+langchain-ollama>=0.1.0
+
+# Streamlit for UI
+streamlit>=1.30.0
+
+# Visualization
+plotly>=5.18.0
+matplotlib>=3.7.0
+
+# Utilities
+python-dateutil>=2.8.2
