@@ -16,6 +16,20 @@ from agent_setup import create_smart_grid_agent
 from main_analysis import analyze_grid_event, get_event_context
 
 
+# Cached functions to prevent re-initialization on every interaction
+@st.cache_resource
+def load_and_cache_data(csv_path: str):
+    """Cache data loading to prevent reloading on every Streamlit rerun."""
+    return load_grid_data(csv_path)
+
+
+@st.cache_resource
+def initialize_agent(_df):
+    """Cache agent initialization to prevent Ollama reconnection on every interaction.
+    Note: _df with underscore prevents Streamlit from hashing the DataFrame."""
+    return create_smart_grid_agent(_df)
+
+
 # Page configuration
 st.set_page_config(
     page_title="Smart Grid AI Operator",
@@ -159,13 +173,13 @@ def main():
             if st.button("🔄 Load & Initialize System", type="primary"):
                 with st.spinner("Loading dataset..."):
                     try:
-                        # Load data
+                        # Load data using cached function
                         if use_default:
                             csv_path = "smart_city_energy_dataset.csv"
                         else:
                             csv_path = uploaded_file
                         
-                        st.session_state.df = load_grid_data(csv_path)
+                        st.session_state.df = load_and_cache_data(csv_path)
                         st.session_state.anomaly_timestamps = get_anomaly_timestamps(
                             st.session_state.df
                         )
@@ -179,7 +193,8 @@ def main():
                 
                 with st.spinner("Initializing AI Agent (connecting to Ollama)..."):
                     try:
-                        st.session_state.llm, st.session_state.agent = create_smart_grid_agent(
+                        # Use cached agent initialization
+                        st.session_state.llm, st.session_state.agent = initialize_agent(
                             st.session_state.df
                         )
                         st.success("✓ AI Agent initialized and ready!")
@@ -234,105 +249,196 @@ def main():
         
         return
     
-    # Analysis interface (only shown when data is loaded)
-    st.markdown("---")
-    st.header("🔍 Anomaly Analysis")
+    # Create tabs for different views
+    tab1, tab2 = st.tabs(["📊 System Overview", "🔍 Anomaly Analysis"])
     
-    # Timestamp selection
-    col1, col2 = st.columns([3, 1])
-    
-    with col1:
-        if len(st.session_state.anomaly_timestamps) > 0:
-            selected_timestamp = st.selectbox(
-                "Select an anomaly timestamp to analyze:",
-                st.session_state.anomaly_timestamps,
-                help="Choose from detected anomaly events where Grid Frequency < 49.8 Hz"
-            )
-        else:
-            st.warning("No anomalies detected in the dataset.")
-            selected_timestamp = None
-    
-    with col2:
-        st.markdown("<br>", unsafe_allow_html=True)
-        analyze_button = st.button("🚀 Run Analysis", type="primary", disabled=(selected_timestamp is None))
-    
-    # Analysis results
-    if analyze_button and selected_timestamp:
-        if st.session_state.agent is None:
-            st.error("AI Agent not initialized. Please initialize the system first.")
-            return
+    # Tab 1: System Overview with Time Series
+    with tab1:
+        st.header("🌐 Grid Status Overview")
         
-        # Show raw data for the selected timestamp
-        st.subheader("📋 Raw Data at Selected Timestamp")
+        # Time range selector
+        st.subheader("Time Series Analysis")
+        col1, col2 = st.columns(2)
         
-        target_dt = pd.to_datetime(selected_timestamp)
-        row = st.session_state.df.loc[target_dt]
-        
-        # Display key metrics
-        metric_col1, metric_col2, metric_col3, metric_col4 = st.columns(4)
-        
-        with metric_col1:
-            st.metric("Grid Frequency", f"{row['Grid Frequency (Hz)']:.4f} Hz", 
-                     delta=f"{row['Grid Frequency (Hz)'] - 50:.4f} Hz")
-        
-        with metric_col2:
-            st.metric("Solar PV Output", f"{row['Solar PV Output (kW)']:.2f} kW")
-        
-        with metric_col3:
-            st.metric("Wind Power Output", f"{row['Wind Power Output (kW)']:.2f} kW")
-        
-        with metric_col4:
-            st.metric("Cloud Cover", f"{row['Cloud Cover (%)']:.1f}%")
-        
-        # Expandable full data view
-        with st.expander("View Complete Data Row"):
-            st.dataframe(row.to_frame().T, use_container_width=True)
-        
-        st.markdown("---")
-        
-        # Run AI analysis
-        st.subheader("🤖 AI Agent Analysis")
-        
-        with st.spinner("🧠 AI Agent is analyzing the anomaly... (this may take 30-60 seconds)"):
-            result = analyze_grid_event(
-                selected_timestamp,
-                st.session_state.df,
-                st.session_state.agent
-            )
-        
-        # Display results
-        if result['status'] == 'anomaly':
-            st.success("✓ Analysis Complete")
+        with col1:
+            # Sample data for visualization (last 7 days or all data if less)
+            days_to_show = st.slider("Days to display", 1, 30, 7)
             
-            # Show agent's analysis
-            st.markdown("### 📊 Agent's Report")
-            st.markdown(result['analysis'])
-            
-        elif result['status'] == 'normal':
-            st.info(result['message'])
-        else:
-            st.error(f"Analysis Error: {result['message']}")
+        with col2:
+            show_anomalies = st.checkbox("Highlight Anomalies", value=True)
         
-        st.markdown("---")
+        # Create time series plot with anomalies marked
+        end_time = st.session_state.df.index.max()
+        start_time = end_time - timedelta(days=days_to_show)
         
-        # Visualization
-        st.subheader("📈 Time Series Visualization (±2 hours)")
+        plot_df = st.session_state.df.loc[start_time:end_time]
         
-        context_df = get_event_context(
-            selected_timestamp,
-            st.session_state.df,
-            hours_before=2,
-            hours_after=2
+        # Create figure
+        fig_overview = go.Figure()
+        
+        # Add grid frequency line
+        fig_overview.add_trace(go.Scatter(
+            x=plot_df.index,
+            y=plot_df['Grid Frequency (Hz)'],
+            mode='lines',
+            name='Grid Frequency',
+            line=dict(color='#3498db', width=1.5),
+            hovertemplate='<b>Time:</b> %{x}<br><b>Frequency:</b> %{y:.4f} Hz<extra></extra>'
+        ))
+        
+        # Add anomaly points in red
+        if show_anomalies:
+            anomaly_df = plot_df[plot_df['Is_Anomaly'] == True]
+            fig_overview.add_trace(go.Scatter(
+                x=anomaly_df.index,
+                y=anomaly_df['Grid Frequency (Hz)'],
+                mode='markers',
+                name='Anomalies',
+                marker=dict(color='red', size=6, symbol='x'),
+                hovertemplate='<b>ANOMALY</b><br>Time: %{x}<br>Frequency: %{y:.4f} Hz<extra></extra>'
+            ))
+        
+        # Add threshold line
+        fig_overview.add_hline(
+            y=49.8,
+            line_dash="dash",
+            line_color="red",
+            annotation_text="Anomaly Threshold",
+            annotation_position="right"
         )
         
-        fig = plot_grid_metrics(context_df, selected_timestamp)
-        st.plotly_chart(fig, use_container_width=True)
+        fig_overview.update_layout(
+            title=f"Grid Frequency Time Series (Last {days_to_show} Days)",
+            xaxis_title="Time",
+            yaxis_title="Grid Frequency (Hz)",
+            height=500,
+            hovermode='x unified',
+            showlegend=True
+        )
         
-        # Additional context
-        with st.expander("📊 Statistical Summary (±2 hours)"):
-            key_cols = ['Grid Frequency (Hz)', 'Solar PV Output (kW)', 
-                       'Wind Power Output (kW)', 'Cloud Cover (%)', 'Wind Speed (m/s)']
-            st.dataframe(context_df[key_cols].describe(), use_container_width=True)
+        st.plotly_chart(fig_overview, use_container_width=True)
+        
+        # Statistics cards
+        st.subheader("📈 Key Metrics")
+        stat_col1, stat_col2, stat_col3, stat_col4 = st.columns(4)
+        
+        with stat_col1:
+            avg_freq = plot_df['Grid Frequency (Hz)'].mean()
+            st.metric("Avg Frequency", f"{avg_freq:.4f} Hz")
+        
+        with stat_col2:
+            anomaly_count = plot_df['Is_Anomaly'].sum()
+            anomaly_rate = (anomaly_count / len(plot_df)) * 100
+            st.metric("Anomaly Rate", f"{anomaly_rate:.2f}%", 
+                     delta=f"{anomaly_count} events")
+        
+        with stat_col3:
+            avg_solar = plot_df['Solar PV Output (kW)'].mean()
+            st.metric("Avg Solar Output", f"{avg_solar:.1f} kW")
+        
+        with stat_col4:
+            avg_wind = plot_df['Wind Power Output (kW)'].mean()
+            st.metric("Avg Wind Output", f"{avg_wind:.1f} kW")
+    
+    # Tab 2: Anomaly Analysis (existing code)
+    with tab2:
+        st.header("🔍 Detailed Anomaly Analysis")
+        
+        # Timestamp selection
+        col1, col2 = st.columns([3, 1])
+        
+        with col1:
+            if len(st.session_state.anomaly_timestamps) > 0:
+                selected_timestamp = st.selectbox(
+                    "Select an anomaly timestamp to analyze:",
+                    st.session_state.anomaly_timestamps,
+                    help="Choose from detected anomaly events where Grid Frequency < 49.8 Hz"
+                )
+            else:
+                st.warning("No anomalies detected in the dataset.")
+                selected_timestamp = None
+        
+        with col2:
+            st.markdown("<br>", unsafe_allow_html=True)
+            analyze_button = st.button("🚀 Run Analysis", type="primary", disabled=(selected_timestamp is None))
+        
+        # Analysis results
+        if analyze_button and selected_timestamp:
+            if st.session_state.agent is None:
+                st.error("AI Agent not initialized. Please initialize the system first.")
+                return
+            
+            # Show raw data for the selected timestamp
+            st.subheader("📋 Raw Data at Selected Timestamp")
+            
+            target_dt = pd.to_datetime(selected_timestamp)
+            row = st.session_state.df.loc[target_dt]
+            
+            # Display key metrics
+            metric_col1, metric_col2, metric_col3, metric_col4 = st.columns(4)
+            
+            with metric_col1:
+                st.metric("Grid Frequency", f"{row['Grid Frequency (Hz)']:.4f} Hz", 
+                         delta=f"{row['Grid Frequency (Hz)'] - 50:.4f} Hz")
+            
+            with metric_col2:
+                st.metric("Solar PV Output", f"{row['Solar PV Output (kW)']:.2f} kW")
+            
+            with metric_col3:
+                st.metric("Wind Power Output", f"{row['Wind Power Output (kW)']:.2f} kW")
+            
+            with metric_col4:
+                st.metric("Cloud Cover", f"{row['Cloud Cover (%)']:.1f}%")
+            
+            # Expandable full data view
+            with st.expander("View Complete Data Row"):
+                st.dataframe(row.to_frame().T, use_container_width=True)
+            
+            st.markdown("---")
+            
+            # Run AI analysis
+            st.subheader("🤖 AI Agent Analysis")
+            
+            with st.spinner("🧠 AI Agent is analyzing the anomaly... (this may take 30-60 seconds)"):
+                result = analyze_grid_event(
+                    selected_timestamp,
+                    st.session_state.df,
+                    st.session_state.agent
+                )
+            
+            # Display results
+            if result['status'] == 'anomaly':
+                st.success("✓ Analysis Complete")
+                
+                # Show agent's analysis
+                st.markdown("### 📊 Agent's Report")
+                st.markdown(result['analysis'])
+                
+            elif result['status'] == 'normal':
+                st.info(result['message'])
+            else:
+                st.error(f"Analysis Error: {result['message']}")
+            
+            st.markdown("---")
+            
+            # Visualization
+            st.subheader("📈 Time Series Visualization (±2 hours)")
+            
+            context_df = get_event_context(
+                selected_timestamp,
+                st.session_state.df,
+                hours_before=2,
+                hours_after=2
+            )
+            
+            fig = plot_grid_metrics(context_df, selected_timestamp)
+            st.plotly_chart(fig, use_container_width=True)
+            
+            # Additional context
+            with st.expander("📊 Statistical Summary (±2 hours)"):
+                key_cols = ['Grid Frequency (Hz)', 'Solar PV Output (kW)', 
+                           'Wind Power Output (kW)', 'Cloud Cover (%)', 'Wind Speed (m/s)']
+                st.dataframe(context_df[key_cols].describe(), use_container_width=True)
 
 
 if __name__ == "__main__":

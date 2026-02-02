@@ -28,9 +28,31 @@ def load_grid_data(csv_path: str) -> pd.DataFrame:
     # Set Timestamp as index
     df.set_index('Timestamp', inplace=True)
     
-    # Create Is_Anomaly boolean column
-    # Logic: True if Grid Frequency < 49.8 Hz, else False
-    df['Is_Anomaly'] = df['Grid Frequency (Hz)'] < 49.8
+    # Force numeric type conversion for critical columns
+    numeric_cols = [
+        'Grid Frequency (Hz)', 'Solar PV Output (kW)', 'Wind Power Output (kW)',
+        'Cloud Cover (%)', 'Wind Speed (m/s)', 'Temperature (C)', 'Humidity (%)'
+    ]
+    for col in numeric_cols:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors='coerce')
+    
+    # Drop rows with NaN in critical columns
+    critical_cols = ['Grid Frequency (Hz)']
+    df = df.dropna(subset=critical_cols)
+    
+    # Dynamic Anomaly Detection using Z-Score (Statistical Process Control)
+    # This is more sophisticated than fixed thresholds
+    window = 60  # 30 hours (assuming 30-min intervals)
+    rolling_mean = df['Grid Frequency (Hz)'].rolling(window=window, min_periods=1).mean()
+    rolling_std = df['Grid Frequency (Hz)'].rolling(window=window, min_periods=1).std()
+    
+    # Z-Score calculation: deviation from rolling mean in units of standard deviation
+    z_score = (df['Grid Frequency (Hz)'] - rolling_mean) / rolling_std
+    
+    # Define anomaly: |Z-Score| > 3 OR frequency < 49.8 Hz (hybrid approach)
+    df['Is_Anomaly'] = (z_score.abs() > 3) | (df['Grid Frequency (Hz)'] < 49.8)
+    df['Z_Score'] = z_score  # Store for analysis
     
     # Sort dataframe by Timestamp
     df.sort_index(inplace=True)

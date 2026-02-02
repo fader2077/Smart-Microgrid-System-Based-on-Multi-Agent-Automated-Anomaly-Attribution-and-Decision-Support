@@ -88,7 +88,54 @@ def analyze_grid_event(
         wind_change_pct = ((current_row['Wind Power Output (kW)'] - prior_row['Wind Power Output (kW)']) / prior_row['Wind Power Output (kW)'] * 100) if prior_row['Wind Power Output (kW)'] > 0 else 0
         cloud_change = current_row['Cloud Cover (%)'] - prior_row['Cloud Cover (%)']
         
-        # Create simple analysis response
+        # Calculate confidence score based on data quality and correlation strength
+        confidence = 100
+        if abs(freq_change) < 0.1:
+            confidence -= 20  # Small frequency change reduces confidence
+        if abs(solar_change_pct) > 50 or abs(wind_change_pct) > 50:
+            confidence -= 10  # Extreme changes may indicate data quality issues
+        
+        # Determine primary root cause
+        root_cause = "Unknown"
+        if solar_change_pct < -10 and cloud_change > 10:
+            root_cause = "Weather Impact: Cloud cover increase caused solar generation drop"
+            confidence += 15  # Strong correlation increases confidence
+        elif solar_change_pct < -10:
+            root_cause = "Solar Generation Drop: Significant decrease in solar output"
+        elif wind_change_pct < -10:
+            root_cause = "Wind Generation Drop: Significant decrease in wind power"
+        elif abs(solar_change_pct) > 10 or abs(wind_change_pct) > 10:
+            root_cause = "Renewable Generation Loss: Combined renewable capacity reduction"
+        
+        confidence = min(100, max(0, confidence))  # Clamp between 0-100
+        
+        # Generate recommendations based on severity
+        recommendations = []
+        if abs(freq_change) > 0.2:
+            recommendations.append("URGENT: Activate backup power sources immediately")
+        else:
+            recommendations.append("Monitor situation closely")
+        
+        if cloud_change > 10:
+            recommendations.append("Weather-related: Monitor forecasts for recovery timeline")
+        
+        if current_row['Grid Frequency (Hz)'] < 49.5:
+            recommendations.append("CRITICAL: Consider load shedding to stabilize frequency")
+        
+        # Create structured JSON output
+        analysis_json = {
+            "root_cause": root_cause,
+            "confidence_score": confidence,
+            "recommendations": recommendations,
+            "metrics": {
+                "frequency_change_hz": round(freq_change, 4),
+                "solar_change_percent": round(solar_change_pct, 2),
+                "wind_change_percent": round(wind_change_pct, 2),
+                "cloud_cover_change": round(cloud_change, 2)
+            }
+        }
+        
+        # Create formatted text output (backward compatible)
         agent_output = f"""
 --- DATA COMPARISON ---
 Time: {prior_timestamp} -> {target_timestamp}
@@ -99,6 +146,8 @@ Wind Power Output: {prior_row['Wind Power Output (kW)']:.2f} kW -> {current_row[
 Cloud Cover: {prior_row['Cloud Cover (%)']:.1f}% -> {current_row['Cloud Cover (%)']:.1f}% (Change: {cloud_change:.1f}%)
 
 --- ROOT CAUSE ANALYSIS ---
+**{root_cause}** (Confidence: {confidence}%)
+
 The grid frequency dropped by {abs(freq_change):.2f} Hz. """
         
         if solar_change_pct < -10 and cloud_change > 10:
@@ -112,14 +161,20 @@ The grid frequency dropped by {abs(freq_change):.2f} Hz. """
         if abs(solar_change_pct) > 10 or abs(wind_change_pct) > 10:
             agent_output += "The loss of renewable generation capacity is the primary cause of frequency instability."
         
-        agent_output += """
+        agent_output += f"""
 
---- RECOMMENDATION ---
-1. Activate backup power sources immediately to compensate for renewable generation loss.
-2. Monitor weather forecasts - if conditions improve soon, this may be temporary.
-3. Consider load shedding if frequency continues to drop below 49.5 Hz."""
+--- RECOMMENDATIONS ---
+"""
+        for i, rec in enumerate(recommendations, 1):
+            agent_output += f"{i}. {rec}\n"
         
     else:
+        analysis_json = {
+            "root_cause": "Insufficient data",
+            "confidence_score": 0,
+            "recommendations": ["Collect more historical data"],
+            "metrics": {}
+        }
         agent_output = f"Unable to retrieve comparison data for {prior_timestamp}. Analysis limited to current state only."
     
     print("\n" + "-"*60)
@@ -135,6 +190,7 @@ The grid frequency dropped by {abs(freq_change):.2f} Hz. """
         "wind_output": row['Wind Power Output (kW)'],
         "cloud_cover": row['Cloud Cover (%)'],
         "analysis": agent_output,
+        "structured_analysis": analysis_json,  # NEW: JSON structured output
         "raw_data": row.to_dict()
     }
 

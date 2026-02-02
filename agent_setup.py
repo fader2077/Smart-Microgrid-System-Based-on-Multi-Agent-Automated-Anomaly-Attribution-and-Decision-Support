@@ -44,8 +44,11 @@ def create_grid_agent(df: pd.DataFrame, llm: ChatOllama):
     """
     print("Creating Grid Operator Agent...")
     
-    # Define the agent's role and context
-    prefix = """
+    # Get actual column names from the DataFrame
+    column_list = '\n'.join([f"  - {col}" for col in df.columns])
+    
+    # Define the agent's role and context with explicit column names
+    prefix = f"""
 You are an expert grid operator analyzing smart city microgrid data.
 
 Your primary responsibilities:
@@ -62,27 +65,22 @@ When analyzing anomalies:
 
 Always provide:
 1. Data-driven analysis with specific numbers
-2. Root cause identification
+2. Root cause identification  
 3. Short, actionable recommendations
 
-Dataset columns available:
-- Timestamp (index)
-- Grid Frequency (Hz)
-- Solar PV Output (kW)
-- Wind Power Output (kW)
-- Cloud Cover (%)
-- Wind Speed (m/s)
-- Curtailment Event Flag
-- Temperature (°C)
-- Humidity (%)
-- Is_Anomaly (boolean)
-And many more operational metrics.
+CRITICAL: EXACT DataFrame column names (use these EXACTLY as shown):
+{column_list}
 
-IMPORTANT: When asked to analyze a specific timestamp, always:
-1. Show the exact values at that timestamp
-2. Compare with 30 minutes prior
-3. Calculate percentage changes
-4. Explain causation based on weather and generation data
+IMPORTANT Instructions:
+1. When filtering data, ALWAYS use df.loc[] with proper indexing
+2. If specific rows are needed, filter the dataframe first using Python logic
+3. The Timestamp is the INDEX - access it with df.index, not df['Timestamp']
+4. When asked to analyze a specific timestamp:
+   a) Show the exact values at that timestamp using df.loc[timestamp]
+   b) Compare with 30 minutes prior
+   c) Calculate percentage changes
+   d) Explain causation based on weather and generation data
+5. Output your analysis in structured format with clear sections
 """
     
     # Create the agent with dangerous code enabled (safe for local use)
