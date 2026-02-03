@@ -1,32 +1,120 @@
-# 🔋 Smart Grid AI Operator
+# 🔋 Smart Microgrid AI System
 
-An intelligent Agentic AI system for monitoring and analyzing microgrid anomalies using LangChain and local Llama 3.1 via Ollama.
+## 🌟 Enterprise Edition v2.0.0
+
+An intelligent **enterprise-grade** AI system for monitoring and analyzing smart grid anomalies using **FastAPI + Chainlit + LangChain** architecture with local Llama 3.1 via Ollama.
+
+> **✨ New in v2.0:** RESTful API backend, React-based AI chat interface, auto-generated Swagger docs, and Chain-of-Thought visualization!
+
+---
 
 ## 🎯 Project Overview
 
-This system provides real-time anomaly detection and root cause analysis for smart city energy grids. It uses a local LLM (Llama 3.1) to analyze correlations between grid frequency drops, renewable energy generation changes, and weather conditions.
+This system provides real-time anomaly detection, root cause analysis, and intelligent decision support for smart city microgrids. It uses a local LLM (Llama 3.1) to analyze correlations between grid frequency drops, renewable energy generation changes, and operational conditions.
+
+### Key Features
+
+- 🚀 **Enterprise Architecture**: FastAPI + Chainlit + React
+- 🤖 **AI-Powered Analysis**: LangChain agents with pandas dataframe tools
+- 📊 **Real-time Monitoring**: Interactive Plotly dashboards
+- 🔗 **RESTful API**: 8+ endpoints with OpenAPI/Swagger documentation
+- 💬 **AI Chat Interface**: Chain-of-Thought reasoning visualization
+- 🔒 **Privacy-First**: 100% local LLM inference (no cloud API)
+- ⚡ **High Performance**: Async I/O, caching, WebSocket streaming
+
+---
 
 ## 🏗️ Architecture
 
-### Tech Stack
-- **Python 3.10+**
-- **LangChain** - Agent orchestration framework
-- **LangChain-Ollama** - Local LLM inference
-- **Pandas** - Data manipulation and analysis
-- **Streamlit** - Interactive web interface
-- **Plotly** - Interactive visualizations
-- **Ollama + Llama 3.1** - Local AI model (no cloud API needed!)
+### Tech Stack (v2.0)
 
-### System Components
+| Component | Technology | Purpose |
+|-----------|-----------|---------|
+| **Backend API** | FastAPI 0.109+ | High-performance REST API server |
+| **Frontend/Chat** | Chainlit 1.0+ | React-based AI chat interface |
+| **AI Framework** | LangChain 0.2+ | Agent orchestration & tool calling |
+| **LLM Inference** | Ollama + Llama 3.1 | Local 8B-parameter model |
+| **Data Processing** | Pandas 2.2+ | Dataframe manipulation |
+| **Visualization** | Plotly 6.5+ | Interactive charts & gauges |
+| **Web Server** | Uvicorn 0.27+ | ASGI server with async support |
+
+### System Architecture Diagram
 
 ```
-├── data_loader.py         # Phase 2: Data loading and preprocessing
-├── agent_setup.py         # Phase 3: LangChain Ollama agent configuration
-├── main_analysis.py       # Phase 4: Main analysis logic and anomaly detection
-├── app.py                 # Phase 5: Streamlit UI application
-├── requirements.txt       # Python dependencies
-└── smart_city_energy_dataset.csv  # Your dataset
+┌─────────────────────────────────────────────────────┐
+│              USER INTERFACE LAYER                   │
+│  ┌──────────────┐          ┌──────────────────┐    │
+│  │ API Clients  │          │  Chainlit Chat   │    │
+│  │ (curl/HTTP)  │          │  (React UI)      │    │
+│  └──────┬───────┘          └────────┬─────────┘    │
+└─────────│──────────────────────────│───────────────┘
+          │                          │
+          │ REST API                 │ WebSocket
+          │                          │
+┌─────────▼──────────────────────────▼────────────────┐
+│          FASTAPI SERVER (Port 8000)                 │
+│  ┌──────────────────────────────────────────────┐  │
+│  │  API Endpoints (/api/*)                      │  │
+│  │  - /docs (Swagger UI)                        │  │
+│  │  - /api/health, /api/grid/statistics         │  │
+│  │  - /api/grid/status, /api/grid/anomalies     │  │
+│  └──────────────────────────────────────────────┘  │
+│  ┌──────────────────────────────────────────────┐  │
+│  │  Chainlit Application (/chat)                │  │
+│  │  - AI conversation with CoT visualization    │  │
+│  │  - Plotly React components                   │  │
+│  └──────────────────────────────────────────────┘  │
+└───────────────────┬──────────────────────────────┘
+                    │
+        ┌───────────┴──────────┐
+        │                      │
+┌───────▼────────┐   ┌─────────▼─────────┐
+│  Data Module   │   │  Agent Module     │
+│  (app/         │   │  (app/            │
+│   data_loader) │   │   agent_setup)    │
+└───────┬────────┘   └─────────┬─────────┘
+        │                      │
+┌───────▼──────────────────────▼─────────┐
+│  Data & Model Layer                    │
+│  - CSV Dataset (72,960 records)        │
+│  - Ollama (llama3:8b-instruct-q4_K_M)  │
+└────────────────────────────────────────┘
 ```
+
+### Project Structure
+
+```
+ecogridiea/
+├── app/                          # ⭐ Enterprise application
+│   ├── __init__.py              #    Package initialization
+│   ├── server.py                #    FastAPI main server (Entry Point)
+│   ├── chainlit_app.py          #    Chainlit AI chat interface
+│   ├── data_loader.py           #    Data loading with caching
+│   └── agent_setup.py           #    LangChain agent factory
+│
+├── data/
+│   └── smart_city_energy_dataset.csv  # Dataset (72,960 rows)
+│
+├── .chainlit/
+│   └── config.toml              #    Chainlit configuration
+│
+├── requirements.txt             #    Python dependencies
+├── start_enterprise.bat         #    Windows launcher script
+├── test_enterprise.py           #    Component validation tests
+├── test_api.py                  #    API endpoint tests
+│
+├── ENTERPRISE_ARCHITECTURE.md   # 📚 Architecture documentation
+├── DEPLOYMENT_REPORT.md         # ✅ Deployment verification report
+├── README.md                    # 📖 This file
+│
+└── [Legacy Files]               # 📦 Streamlit version (v1.0)
+    ├── app.py                   #    Streamlit UI (still works)
+    ├── data_loader.py           #    Old data loader
+    ├── agent_setup.py           #    Old agent setup
+    └── main_analysis.py         #    Analysis logic
+```
+
+---
 
 ## 📊 Dataset Structure
 
@@ -37,7 +125,16 @@ The system expects a CSV file with these key columns:
 - `Wind Power Output (kW)` - Wind power generation
 - `Cloud Cover (%)` - Weather condition
 - `Wind Speed (m/s)` - Wind condition
-- And many more operational metrics...
+- `Z_Score` - Anomaly score (auto-calculated)
+- And 50+ more operational metrics...
+
+**Current Dataset:**
+- **Total Records:** 72,960
+- **Time Span:** 2021-01-01 to 2025-02-28 (4+ years)
+- **Anomalies Detected:** 11,628 (15.94%)
+- **Columns:** 61
+
+---
 
 ## 🚀 Quick Start
 
@@ -52,18 +149,158 @@ The system expects a CSV file with these key columns:
 
 2. **Pull Llama 3.1 Model**
    ```bash
-   ollama run llama3.1
+   ollama pull llama3:8b-instruct-q4_K_M
+   # OR simply run:
+   ollama run llama3:8b-instruct-q4_K_M
    ```
-   This will download the model (~4GB) and start the Ollama server.
+   This will download the 4-bit quantized 8B model (~4.7GB) and start the Ollama server.
 
 3. **Install Python Dependencies**
    ```bash
    pip install -r requirements.txt
    ```
 
-### Running the System
+### Running the Enterprise System (v2.0)
 
-#### Option 1: Streamlit Web UI (Recommended)
+#### ⭐ Option 1: Windows Launcher Script (Recommended)
+
+```bash
+# Automatically checks Ollama, activates venv, starts server
+start_enterprise.bat
+```
+
+#### Option 2: Manual Start (Cross-platform)
+
+```bash
+# Set PYTHONPATH for module imports
+export PYTHONPATH=$PWD  # Linux/Mac
+$env:PYTHONPATH = $PWD  # Windows PowerShell
+
+# Start the FastAPI + Chainlit server
+uvicorn app.server:app --host 0.0.0.0 --port 8000
+```
+
+#### Option 3: Development Mode (Auto-reload)
+
+```bash
+$env:PYTHONPATH = $PWD  # Windows
+uvicorn app.server:app --host 0.0.0.0 --port 8000 --reload
+```
+
+### Access Points
+
+Once the server is running, you can access:
+
+- **🌐 Root Info**: http://localhost:8000/
+- **📚 API Documentation**: http://localhost:8000/docs (Swagger UI)
+- **💬 AI Chat Interface**: http://localhost:8000/chat (Chainlit UI)
+- **🔧 Health Check**: http://localhost:8000/api/health
+
+---
+
+## 🔌 API Endpoints
+
+### Core Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/` | System information |
+| GET | `/docs` | Swagger UI documentation |
+| GET | `/redoc` | ReDoc documentation |
+| GET | `/api/health` | Health check status |
+| GET | `/api/grid/statistics` | Overall grid statistics |
+| GET | `/api/grid/status` | Latest grid status |
+| GET | `/api/grid/status/{timestamp}` | Historical data at timestamp |
+| GET | `/api/grid/anomalies` | List anomalies (paginated) |
+| GET | `/api/grid/range` | Query time range |
+
+### API Examples
+
+```bash
+# Health check
+curl http://localhost:8000/api/health
+
+# Get overall statistics
+curl http://localhost:8000/api/grid/statistics
+
+# Get latest grid status
+curl http://localhost:8000/api/grid/status
+
+# Get first 5 anomalies
+curl "http://localhost:8000/api/grid/anomalies?limit=5&offset=0"
+
+# Query specific timestamp
+curl "http://localhost:8000/api/grid/status/2021-01-01%2001:30:00"
+
+# Time range query
+curl "http://localhost:8000/api/grid/range?start=2021-01-01&end=2021-01-02"
+```
+
+See [ENTERPRISE_ARCHITECTURE.md](ENTERPRISE_ARCHITECTURE.md) for detailed API documentation.
+
+---
+
+## 💬 AI Chat Interface
+
+Access the Chainlit interface at http://localhost:8000/chat
+
+### Features
+
+1. **Real-time AI Conversation**
+   - Natural language queries about grid anomalies
+   - Contextual understanding of timestamps and patterns
+   - Automatic data retrieval and analysis
+
+2. **Chain-of-Thought Visualization**
+   - See the AI's reasoning process step-by-step
+   - Transparent decision making with intermediate steps
+   - Tool usage logging
+
+3. **Interactive Visualizations**
+   - Real-time frequency gauge (Green/Yellow/Red status)
+   - 24-hour trend charts with anomaly markers
+   - Event-specific analysis charts
+
+4. **Example Queries**
+   ```
+   - "What's the current grid status?"
+   - "Analyze the anomaly at 2021-01-01 01:30:00"
+   - "Show me recent frequency drops"
+   - "Why did the grid become unstable at midnight?"
+   - "What's the correlation between solar output and anomalies?"
+   ```
+
+---
+
+## 🧪 Testing
+
+### Run Component Tests
+
+```bash
+python test_enterprise.py
+```
+
+Expected output:
+```
+[1/4] Testing Data Loader...    ✅ PASS
+[2/4] Testing Agent Setup...    ✅ PASS
+[3/4] Testing FastAPI Server... ✅ PASS
+[4/4] Testing Chainlit App...   ✅ PASS
+
+ALL TESTS PASSED! 🚀
+```
+
+### Test API Endpoints
+
+```bash
+python test_api.py
+```
+
+---
+
+## 🎓 Legacy Streamlit Version
+
+The original Streamlit interface (v1.0) is still available:
 
 ```bash
 streamlit run app.py
