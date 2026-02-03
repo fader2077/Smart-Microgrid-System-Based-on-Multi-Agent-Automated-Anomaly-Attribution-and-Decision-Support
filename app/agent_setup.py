@@ -76,18 +76,25 @@ CRITICAL: EXACT DataFrame column names (use these EXACTLY as shown):
 {column_list}
 
 IMPORTANT Instructions:
-1. When filtering data, ALWAYS use df.loc[] with proper indexing
-2. If specific rows are needed, filter the dataframe first using Python logic
+1. ALWAYS use the python_repl_ast tool to execute Python code
+2. When filtering data, use df.loc[] with proper indexing
 3. The Timestamp is the INDEX - access it with df.index, not df['Timestamp']
 4. When asked to analyze a specific timestamp:
-   a) Show the exact values at that timestamp using df.loc[timestamp]
-   b) Compare with 30 minutes prior
+   a) Use: df.loc['timestamp_value']
+   b) Compare with: df.loc['prior_timestamp']
    c) Calculate percentage changes
-   d) Explain causation based on weather and generation data
 5. Output your analysis in structured format with clear sections
+
+TOOL USAGE REQUIREMENT:
+- You MUST use Action: python_repl_ast
+- Action Input must be valid Python code as a string
+- Example:
+  Action: python_repl_ast
+  Action Input: "df.loc[:5, ['Grid Frequency (Hz)', 'Solar PV Output (kW)']]"
 """
     
-    # Create the agent with dangerous code enabled (safe for local use)
+    # Create the agent with proper error handling
+    # Note: handle_parsing_errors is deprecated in newer versions
     agent = create_pandas_dataframe_agent(
         llm=llm,
         df=df,
@@ -95,7 +102,9 @@ IMPORTANT Instructions:
         verbose=True,
         allow_dangerous_code=True,
         prefix=prefix,
-        max_iterations=10
+        max_iterations=15,  # Increased for complex queries
+        max_execution_time=60,  # 60 seconds timeout
+        early_stopping_method="generate"  # Better error handling
     )
     
     print("[AGENT SETUP] Grid Operator Agent created successfully")
